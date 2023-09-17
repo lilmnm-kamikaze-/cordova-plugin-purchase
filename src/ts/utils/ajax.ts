@@ -124,6 +124,7 @@ namespace CdvPurchase {
                 ajaxOptions.headers = options.customHeaders;
             }
             log.debug('ajax[http] -> send request to ' + options.url);
+            log.debug('ajax[http] -> data in request ' + JSON.stringify(options.data));
             const ajaxDone = (response: any) => {
                 try {
                     if (response.status == 200) {

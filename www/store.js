@@ -570,11 +570,13 @@ var CdvPurchase;
                     }
                     catch (err) {
                         this.log.error('Exception probably caused by an invalid response from the validator.' + err.message);
-                        this.controller.unverifiedCallbacks.trigger({ receipt, payload: {
+                        this.controller.unverifiedCallbacks.trigger({
+                            receipt, payload: {
                                 ok: false,
                                 code: CdvPurchase.ErrorCode.VERIFICATION_FAILED,
                                 message: err.message,
-                            } });
+                            }
+                        });
                     }
                 });
                 receipts.forEach(receipt => this.runOnReceipt(receipt, onResponse));
@@ -2127,18 +2129,18 @@ var CdvPurchase;
                     .verified(check)
                     .unverified(check)
                     .receiptsReady(() => {
-                    this.log.debug('receiptsReady...');
-                    if (!this.controller.hasLocalReceipts() || !this.controller.hasValidator()) {
-                        setTimeout(() => {
+                        this.log.debug('receiptsReady...');
+                        if (!this.controller.hasLocalReceipts() || !this.controller.hasValidator()) {
+                            setTimeout(() => {
+                                check();
+                            }, 0);
+                        }
+                        // check every 10s, to handle cases where neither "verified" nor "unverified" have been triggered.
+                        this.intervalChecker = setInterval(() => {
+                            this.log.debug('keep checking every 10s...');
                             check();
-                        }, 0);
-                    }
-                    // check every 10s, to handle cases where neither "verified" nor "unverified" have been triggered.
-                    this.intervalChecker = setInterval(() => {
-                        this.log.debug('keep checking every 10s...');
-                        check();
-                    }, 10000);
-                });
+                        }, 10000);
+                    });
             }
         }
         Internal.ReceiptsMonitor = ReceiptsMonitor;
@@ -3120,7 +3122,7 @@ var CdvPurchase;
                         transactionDate: string;
                         discountId: string;
                     }[] = [];
-    
+
                     private timer: number | null = null;
                     */
                     /** List of transaction updates to process */
@@ -4636,8 +4638,8 @@ var CdvPurchase;
                     // let's also refresh purchases
                     this.getPurchases()
                         .then(err => {
-                        resolve(this._receipts);
-                    });
+                            resolve(this._receipts);
+                        });
                 });
             }
             /** @inheritDoc */
@@ -5403,11 +5405,11 @@ var CdvPurchase;
                 // console.log('iabInAppLoaded: ' + JSON.stringify(vp));
                 const existingOffer = this.getOffer(vp.productId);
                 const pricingPhases = [{
-                        price: (_b = (_a = vp.formatted_price) !== null && _a !== void 0 ? _a : vp.price) !== null && _b !== void 0 ? _b : `${((_c = vp.price_amount_micros) !== null && _c !== void 0 ? _c : 0) / 1000000} ${vp.price_currency_code}`,
-                        priceMicros: (_d = vp.price_amount_micros) !== null && _d !== void 0 ? _d : 0,
-                        currency: vp.price_currency_code,
-                        recurrenceMode: CdvPurchase.RecurrenceMode.NON_RECURRING,
-                    }];
+                    price: (_b = (_a = vp.formatted_price) !== null && _a !== void 0 ? _a : vp.price) !== null && _b !== void 0 ? _b : `${((_c = vp.price_amount_micros) !== null && _c !== void 0 ? _c : 0) / 1000000} ${vp.price_currency_code}`,
+                    priceMicros: (_d = vp.price_amount_micros) !== null && _d !== void 0 ? _d : 0,
+                    currency: vp.price_currency_code,
+                    recurrenceMode: CdvPurchase.RecurrenceMode.NON_RECURRING,
+                }];
                 if (existingOffer) {
                     // state: store.VALID,
                     // title: vp.name || trimTitle(vp.title),
@@ -5599,9 +5601,9 @@ var CdvPurchase;
                     const tr = new CdvPurchase.Transaction(platform, receipt, this.context.apiDecorators);
                     receipt.transactions = [tr];
                     tr.products = [{
-                            id: offer.productId,
-                            offerId: offer.id,
-                        }];
+                        id: offer.productId,
+                        offerId: offer.id,
+                    }];
                     tr.state = CdvPurchase.TransactionState.APPROVED;
                     tr.purchaseDate = new Date();
                     tr.transactionId = offer.productId + '-' + (new Date().getTime());
@@ -5711,9 +5713,9 @@ var CdvPurchase;
                     var _a, _b;
                     const tr = new CdvPurchase.Transaction(platform, receipt, this.context.apiDecorators);
                     tr.products = [{
-                            id: Test.testProducts.PAID_SUBSCRIPTION_ACTIVE.id,
-                            offerId: Test.testProducts.PAID_SUBSCRIPTION_ACTIVE.extra.offerId,
-                        }];
+                        id: Test.testProducts.PAID_SUBSCRIPTION_ACTIVE.id,
+                        offerId: Test.testProducts.PAID_SUBSCRIPTION_ACTIVE.extra.offerId,
+                    }];
                     tr.state = CdvPurchase.TransactionState.APPROVED;
                     tr.transactionId = transactionId(n);
                     tr.isAcknowledged = n == 1;
@@ -5863,12 +5865,12 @@ var CdvPurchase;
                     product.addOffer(new CdvPurchase.Offer({
                         id: 'test-consumable-offer1',
                         pricingPhases: [{
-                                price: '$4.99',
-                                currency: 'USD',
-                                priceMicros: 4990000,
-                                paymentMode: CdvPurchase.PaymentMode.UP_FRONT,
-                                recurrenceMode: CdvPurchase.RecurrenceMode.NON_RECURRING,
-                            }],
+                            price: '$4.99',
+                            currency: 'USD',
+                            priceMicros: 4990000,
+                            paymentMode: CdvPurchase.PaymentMode.UP_FRONT,
+                            recurrenceMode: CdvPurchase.RecurrenceMode.NON_RECURRING,
+                        }],
                         product,
                     }, decorator));
                     break;
@@ -5878,12 +5880,12 @@ var CdvPurchase;
                     product.addOffer(new CdvPurchase.Offer({
                         id: 'test-consumable-fail-offer1',
                         pricingPhases: [{
-                                price: '$1.99',
-                                currency: 'USD',
-                                priceMicros: 1990000,
-                                paymentMode: CdvPurchase.PaymentMode.UP_FRONT,
-                                recurrenceMode: CdvPurchase.RecurrenceMode.NON_RECURRING,
-                            }],
+                            price: '$1.99',
+                            currency: 'USD',
+                            priceMicros: 1990000,
+                            paymentMode: CdvPurchase.PaymentMode.UP_FRONT,
+                            recurrenceMode: CdvPurchase.RecurrenceMode.NON_RECURRING,
+                        }],
                         product,
                     }, decorator));
                     break;
@@ -5893,12 +5895,12 @@ var CdvPurchase;
                     product.addOffer(new CdvPurchase.Offer({
                         id: 'test-non-consumable-offer1',
                         pricingPhases: [{
-                                price: '$9.99',
-                                currency: 'USD',
-                                priceMicros: 9990000,
-                                paymentMode: CdvPurchase.PaymentMode.UP_FRONT,
-                                recurrenceMode: CdvPurchase.RecurrenceMode.NON_RECURRING,
-                            }],
+                            price: '$9.99',
+                            currency: 'USD',
+                            priceMicros: 9990000,
+                            paymentMode: CdvPurchase.PaymentMode.UP_FRONT,
+                            recurrenceMode: CdvPurchase.RecurrenceMode.NON_RECURRING,
+                        }],
                         product,
                     }, decorator));
                     break;
@@ -5909,21 +5911,21 @@ var CdvPurchase;
                         id: 'test-paid-subscription-offer1',
                         product,
                         pricingPhases: [{
-                                price: '$0.00',
-                                currency: 'USD',
-                                priceMicros: 0,
-                                paymentMode: CdvPurchase.PaymentMode.FREE_TRIAL,
-                                recurrenceMode: CdvPurchase.RecurrenceMode.FINITE_RECURRING,
-                                billingCycles: 3,
-                                billingPeriod: 'P1W',
-                            }, {
-                                price: '$4.99',
-                                currency: 'USD',
-                                priceMicros: 4990000,
-                                paymentMode: CdvPurchase.PaymentMode.PAY_AS_YOU_GO,
-                                recurrenceMode: CdvPurchase.RecurrenceMode.INFINITE_RECURRING,
-                                billingPeriod: 'P1M',
-                            }],
+                            price: '$0.00',
+                            currency: 'USD',
+                            priceMicros: 0,
+                            paymentMode: CdvPurchase.PaymentMode.FREE_TRIAL,
+                            recurrenceMode: CdvPurchase.RecurrenceMode.FINITE_RECURRING,
+                            billingCycles: 3,
+                            billingPeriod: 'P1W',
+                        }, {
+                            price: '$4.99',
+                            currency: 'USD',
+                            priceMicros: 4990000,
+                            paymentMode: CdvPurchase.PaymentMode.PAY_AS_YOU_GO,
+                            recurrenceMode: CdvPurchase.RecurrenceMode.INFINITE_RECURRING,
+                            billingPeriod: 'P1M',
+                        }],
                     }, decorator));
                     break;
                 case 'PAID_SUBSCRIPTION_ACTIVE':
@@ -5933,13 +5935,13 @@ var CdvPurchase;
                         id: Test.testProducts.PAID_SUBSCRIPTION_ACTIVE.extra.offerId,
                         product,
                         pricingPhases: [{
-                                price: '$19.99',
-                                currency: 'USD',
-                                priceMicros: 19990000,
-                                paymentMode: CdvPurchase.PaymentMode.PAY_AS_YOU_GO,
-                                recurrenceMode: CdvPurchase.RecurrenceMode.INFINITE_RECURRING,
-                                billingPeriod: 'P1Y',
-                            }],
+                            price: '$19.99',
+                            currency: 'USD',
+                            priceMicros: 19990000,
+                            paymentMode: CdvPurchase.PaymentMode.PAY_AS_YOU_GO,
+                            recurrenceMode: CdvPurchase.RecurrenceMode.INFINITE_RECURRING,
+                            billingPeriod: 'P1Y',
+                        }],
                     }, decorator));
                     break;
                 default:
@@ -6114,6 +6116,7 @@ var CdvPurchase;
                 ajaxOptions.headers = options.customHeaders;
             }
             log.debug('ajax[http] -> send request to ' + options.url);
+            log.debug('ajax[http] -> data in request ' + JSON.stringify(options.data));
             const ajaxDone = (response) => {
                 try {
                     if (response.status == 200) {
