@@ -28,7 +28,9 @@ namespace CdvPurchase {
          * @param requests List of discount offers to evaluate eligibility for
          * @param callback Get the response, a boolean for each request (matched by index).
          */
-        export type DiscountEligibilityDeterminer = (applicationReceipt: ApplicationReceipt, requests: DiscountEligibilityRequest[], callback: (response: boolean[]) => void) => void;
+        export type DiscountEligibilityDeterminer = ((applicationReceipt: ApplicationReceipt, requests: DiscountEligibilityRequest[], callback: (response: boolean[]) => void) => void) & {
+            cacheReceipt?: (receipt: VerifiedReceipt) => void;
+        };
 
         /**
          * Optional options for the AppleAppStore adapter
@@ -450,7 +452,9 @@ namespace CdvPurchase {
             }
 
             private async loadEligibility(validProducts: Bridge.ValidProduct[]): Promise<Internal.DiscountEligibilities> {
+                this.log.debug('load eligibility: ' + JSON.stringify(validProducts));
                 if (!this.discountEligibilityDeterminer) {
+                    this.log.debug('No discount eligibility determiner, skipping...');
                     return new Internal.DiscountEligibilities([], []);
                 }
 
@@ -463,6 +467,15 @@ namespace CdvPurchase {
                             discountType: discount.type,
                         });
                     });
+                    if (!valid.discounts && valid.introPrice) {
+                        // sometime apple returns the discounts in the deprecated "introductory" info
+                        // we create a special "discount" with the id "intro" to check for eligibility.
+                        eligibilityRequests.push({
+                            productId: valid.id,
+                            discountId: 'intro',
+                            discountType: 'Introductory',
+                        });
+                    }
                 });
 
                 if (eligibilityRequests.length > 0) {
@@ -499,7 +512,7 @@ namespace CdvPurchase {
                             this.log.info('bridge.loaded: ' + JSON.stringify({ validProducts, invalidProducts }));
                             this.addValidProducts(products, validProducts);
                             const eligibilities = await this.loadEligibility(validProducts);
-                            this.log.info('eligibilities ready.');
+                            this.log.info('eligibilities ready: ' + JSON.stringify(eligibilities));
                             // for any valid product that includes a discount, check the eligibility.
                             const ret = products.map(p => {
                                 if (invalidProducts.indexOf(p.id) >= 0) {
