@@ -662,7 +662,7 @@ declare namespace CdvPurchase {
     /**
      * Current release number of the plugin.
      */
-    const PLUGIN_VERSION = "13.8.2";
+    const PLUGIN_VERSION = "13.8.3";
     /**
      * Entry class of the plugin.
      */
@@ -4073,6 +4073,7 @@ declare namespace CdvPurchase {
             private context;
             private log;
             autoRefreshIntervalMillis: number;
+            static trimProductTitles: boolean;
             static _instance: Adapter;
             constructor(context: Internal.AdapterContext, autoRefreshIntervalMillis?: number);
             private initializationPromise?;
