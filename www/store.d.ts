@@ -313,6 +313,12 @@ declare namespace CdvPurchase {
     }
 }
 declare namespace CdvPurchase {
+    namespace Utils {
+        /** Returns human format name for a given platform */
+        function platformName(platform: Platform): string;
+    }
+}
+declare namespace CdvPurchase {
     /**
      * @internal
      */
@@ -644,6 +650,50 @@ declare namespace CdvPurchase {
     }
 }
 /**
+ * The platform doesn't send notifications when a subscription expires.
+ *
+ * However this is useful, so let's do just that.
+ */
+declare namespace CdvPurchase {
+    namespace Internal {
+        /** Data and callbacks to interface with the ExpiryMonitor */
+        interface ExpiryMonitorController {
+            verifiedReceipts: VerifiedReceipt[];
+            /** Called when a verified purchase expires */
+            onVerifiedPurchaseExpired(verifiedPurchase: VerifiedPurchase, receipt: VerifiedReceipt): void;
+        }
+        class ExpiryMonitor {
+            /** Time between checks for newly expired subscriptions */
+            static INTERVAL_MS: number;
+            /**
+             * Extra time until re-validating an expired subscription.
+             *
+             * The platform will take unspecified amount of time to report the renewal via their APIs.
+             * Values below have been selected via trial-and-error, might require tweaking.
+             */
+            static GRACE_PERIOD_MS: {
+                [platform: string]: number;
+            };
+            /** controller */
+            controller: ExpiryMonitorController;
+            /** reference to the function that runs at a given interval */
+            interval?: number;
+            /** Track active verified purchases */
+            activePurchases: {
+                [transactionId: string]: true;
+            };
+            /** Track notified verified purchases */
+            notifiedPurchases: {
+                [transactionId: string]: true;
+            };
+            /** Track active local transactions */
+            /** Track notified local transactions */
+            constructor(controller: ExpiryMonitorController);
+            launch(): void;
+        }
+    }
+}
+/**
  * Namespace for the cordova-plugin-purchase plugin.
  *
  * All classes, enumerations and variables defined by the plugin are in this namespace.
@@ -662,7 +712,7 @@ declare namespace CdvPurchase {
     /**
      * Current release number of the plugin.
      */
-    const PLUGIN_VERSION = "13.8.3";
+    const PLUGIN_VERSION = "13.8.6";
     /**
      * Entry class of the plugin.
      */
@@ -777,6 +827,8 @@ declare namespace CdvPurchase {
         private _validator;
         /** Monitor state changes for transactions */
         private transactionStateMonitors;
+        /** Monitor subscription expiry */
+        private expiryMonitor;
         constructor();
         /**
          * Register a product.
@@ -1129,6 +1181,10 @@ declare namespace CdvPurchase {
          * Load the receipts
          */
         loadReceipts(): Promise<Receipt[]>;
+        /**
+         * Set to true if receipts and products can be loaded in parallel
+         */
+        supportsParallelLoading: boolean;
         /**
          * Initializes an order.
          */
@@ -2359,6 +2415,7 @@ declare namespace CdvPurchase {
             private setPaymentMonitor;
             private callPaymentMonitor;
             initialize(): Promise<IError | undefined>;
+            supportsParallelLoading: boolean;
             loadReceipts(): Promise<Receipt[]>;
             private canMakePayments;
             /** True iff the appStoreReceipt is already being initialized */
@@ -3141,6 +3198,7 @@ declare namespace CdvPurchase {
             options: AdapterOptions;
             constructor(context: Internal.AdapterContext, options: AdapterOptions);
             get isSupported(): boolean;
+            supportsParallelLoading: boolean;
             /**
              * Initialize the Braintree Adapter.
              */
@@ -4059,6 +4117,7 @@ declare namespace CdvPurchase {
             name: string;
             /** Has the adapter been successfully initialized */
             ready: boolean;
+            supportsParallelLoading: boolean;
             /** List of products managed by the GooglePlay adapter */
             get products(): GProduct[];
             private _products;
@@ -4881,6 +4940,7 @@ declare namespace CdvPurchase {
             private log;
             constructor(context: Internal.AdapterContext);
             get isSupported(): boolean;
+            supportsParallelLoading: boolean;
             initialize(): Promise<IError | undefined>;
             loadReceipts(): Promise<Receipt[]>;
             loadProducts(products: IRegisterProduct[]): Promise<(Product | IError)[]>;
@@ -5014,6 +5074,7 @@ declare namespace CdvPurchase {
             id: Platform;
             name: string;
             ready: boolean;
+            supportsParallelLoading: boolean;
             products: Product[];
             receipts: Receipt[];
             initialize(): Promise<IError | undefined>;

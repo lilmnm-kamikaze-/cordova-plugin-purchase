@@ -2,6 +2,85 @@
 
 ## 13.8
 
+### 13.8.6
+
+#### Add CdvPurchase.Utils.platformName()
+
+Convert `CdvPurchase.Platform` enum values to a more user friendly version.
+
+Usage:
+
+```ts
+console.log(CdvPurchase.Utils.platformName(myTransaction.platform));
+
+// returns "App Store" or "Google Play" or "Braintree", ....
+```
+
+#### Increase expiry monitor's grace period on Google Play
+
+The 10 seconds wait before refreshing an expired subscription on Google Play wasn't enough: increased to 30 seconds.
+
+Ref #1468
+
+### 13.8.5
+
+Fixes for Apple AppStore's introductory periods and
+subscription renewals.
+
+#### Load products and receipts in parallel on Apple
+
+This solves the issue with processing the eligibility of
+introductory periods.
+
+#### Increase grace period for Apple subscription before refresh
+
+After observing that Apple sometime needs more than a
+minute before the API returns the subscription renewal
+transaction, we increased the local grace period (time
+before refresh) to 90 seconds.
+
+```ts
+CdvPurchase.Internal.ExpiryMonitor.GRACE_PERIOD_MS[Platform.APPLE_APPSTORE] = 90000;
+```
+
+### 13.8.4
+
+#### Trim product titles on Google Play
+
+Google Play returns the app name in parenthesis in product titles. The plugin
+now automatically trims it from the app name.
+
+This behavior can be disabled by setting:
+
+```ts
+CdvPurchase.GooglePlay.Adapter.trimProductTitles = false
+```
+
+#### Automatically re-validate just-expired subscriptions
+
+The plugin will now monitor active subscripion purchases (as returned by a
+receipt validation service) and re-validate the receipt automatically when the
+subscription expires or renews.
+
+You can customize the expiry monitor (which should rarely be needed):
+
+```ts
+// interval between checks in milliseconds
+CdvPurchase.Internal.ExpiryMonitor.INTERVAL_MS = 10000; // default: 10s
+
+// extra time before a subscription is considered expired (when re-validating
+// too early, sometime the new transaction isn't available yet).
+CdvPurchase.Internal.ExpiryMonitor.GRACE_PERIOD_MS = 10000; // default: 10s
+```
+
+#### Add expiry date to Test Adapter's subscription
+
+The expiry date was missing from the test product:
+
+```ts
+CdvPurchase.Test.testProducts.PAID_SUBSCRIPTION
+```
+
 ### 13.8.3
 
 Fix npm package.

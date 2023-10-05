@@ -1,5 +1,6 @@
 /// <reference path="types.ts" />
 /// <reference path="utils/compatibility.ts" />
+/// <reference path="utils/platform-name.ts" />
 /// <reference path="validator/validator.ts" />
 /// <reference path="log.ts" />
 /// <reference path="internal/adapters.ts" />
@@ -9,6 +10,7 @@
 /// <reference path="internal/register.ts" />
 /// <reference path="internal/transaction-monitor.ts" />
 /// <reference path="internal/receipts-monitor.ts" />
+/// <reference path="internal/expiry-monitor.ts" />
 
 /**
  * Namespace for the cordova-plugin-purchase plugin.
@@ -30,7 +32,7 @@ namespace CdvPurchase {
     /**
      * Current release number of the plugin.
      */
-    export const PLUGIN_VERSION = '13.8.3';
+    export const PLUGIN_VERSION = '13.8.6';
 
     /**
      * Entry class of the plugin.
@@ -177,6 +179,9 @@ namespace CdvPurchase {
         /** Monitor state changes for transactions */
         private transactionStateMonitors: Internal.TransactionStateMonitors;
 
+        /** Monitor subscription expiry */
+        private expiryMonitor: Internal.ExpiryMonitor;
+
         constructor() {
             const store = this;
             this.listener = new Internal.StoreAdapterListener({
@@ -208,6 +213,17 @@ namespace CdvPurchase {
                 receiptsVerified: () => { store.receiptsVerifiedCallbacks.trigger(); },
                 log: this.log,
             }).launch();
+            this.expiryMonitor = new Internal.ExpiryMonitor({
+                // get localReceipts() { return store.localReceipts; },
+                get verifiedReceipts() { return store.verifiedReceipts; },
+                // onTransactionExpired(transaction) {
+                // store.approvedCallbacks.trigger(transaction);
+                // },
+                onVerifiedPurchaseExpired(verifiedPurchase, receipt) {
+                    store.verify(receipt.sourceReceipt);
+                },
+            });
+            this.expiryMonitor.launch();
         }
 
         /**

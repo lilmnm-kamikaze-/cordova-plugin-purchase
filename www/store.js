@@ -455,6 +455,29 @@ var CdvPurchase;
 })(CdvPurchase || (CdvPurchase = {}));
 var CdvPurchase;
 (function (CdvPurchase) {
+    let Utils;
+    (function (Utils) {
+        /** Returns human format name for a given platform */
+        function platformName(platform) {
+            switch (platform) {
+                case CdvPurchase.Platform.APPLE_APPSTORE:
+                    return "App Store";
+                case CdvPurchase.Platform.GOOGLE_PLAY:
+                    return "Google Play";
+                case CdvPurchase.Platform.WINDOWS_STORE:
+                    return "Windows Store";
+                case CdvPurchase.Platform.BRAINTREE:
+                    return "Braintree";
+                case CdvPurchase.Platform.TEST:
+                    return "Test";
+                default: return platform;
+            }
+        }
+        Utils.platformName = platformName;
+    })(Utils = CdvPurchase.Utils || (CdvPurchase.Utils = {}));
+})(CdvPurchase || (CdvPurchase = {}));
+var CdvPurchase;
+(function (CdvPurchase) {
     /**
      * @internal
      */
@@ -804,11 +827,23 @@ var CdvPurchase;
                         log.info(`${adapter.name} products: ${JSON.stringify(platformProducts)}`);
                         if (platformProducts.length === 0)
                             return;
-                        const loadProductsResult = yield adapter.loadProducts(platformProducts);
+                        let loadProductsResult = [];
+                        let loadReceiptsResult = [];
+                        if (adapter.supportsParallelLoading) {
+                            [loadProductsResult, loadReceiptsResult] = yield Promise.all([
+                                adapter.loadProducts(platformProducts),
+                                adapter.loadReceipts()
+                            ]);
+                        }
+                        else {
+                            loadProductsResult = yield adapter.loadProducts(platformProducts);
+                            loadReceiptsResult = yield adapter.loadReceipts();
+                        }
+                        // const loadProductsResult = await adapter.loadProducts(platformProducts);
                         log.info(`${adapter.name} products loaded: ${JSON.stringify(loadProductsResult)}`);
                         const loadedProducts = loadProductsResult.filter(p => p instanceof CdvPurchase.Product);
                         context.listener.productsUpdated(platformToInit.platform, loadedProducts);
-                        const loadReceiptsResult = yield adapter.loadReceipts();
+                        // const loadReceiptsResult = await adapter.loadReceipts();
                         log.info(`${adapter.name} receipts loaded: ${JSON.stringify(loadReceiptsResult)}`);
                         return loadProductsResult.filter(lr => 'code' in lr && 'message' in lr)[0];
                     })));
@@ -1161,8 +1196,90 @@ var CdvPurchase;
         Internal.ReceiptsMonitor = ReceiptsMonitor;
     })(Internal = CdvPurchase.Internal || (CdvPurchase.Internal = {}));
 })(CdvPurchase || (CdvPurchase = {}));
+/**
+ * The platform doesn't send notifications when a subscription expires.
+ *
+ * However this is useful, so let's do just that.
+ */
+var CdvPurchase;
+(function (CdvPurchase) {
+    let Internal;
+    (function (Internal) {
+        class ExpiryMonitor {
+            /** Track active local transactions */
+            // activeTransactions: {
+            //   [transactionId: string]: true;
+            // } = {};
+            /** Track notified local transactions */
+            // notifiedTransactions: {
+            //   [transactionId: string]: true;
+            // } = {};
+            constructor(controller) {
+                /** Track active verified purchases */
+                this.activePurchases = {};
+                /** Track notified verified purchases */
+                this.notifiedPurchases = {};
+                this.controller = controller;
+            }
+            launch() {
+                this.interval = setInterval(() => {
+                    var _a, _b;
+                    const now = +new Date();
+                    // Check for verified purchases expiry
+                    for (const receipt of this.controller.verifiedReceipts) {
+                        const gracePeriod = (_a = ExpiryMonitor.GRACE_PERIOD_MS[receipt.platform]) !== null && _a !== void 0 ? _a : ExpiryMonitor.GRACE_PERIOD_MS.DEFAULT;
+                        for (const purchase of receipt.collection) {
+                            if (purchase.expiryDate) {
+                                const expiryDate = purchase.expiryDate + gracePeriod;
+                                const transactionId = (_b = purchase.transactionId) !== null && _b !== void 0 ? _b : `${expiryDate}`;
+                                if (expiryDate > now) {
+                                    this.activePurchases[transactionId] = true;
+                                }
+                                if (expiryDate < now && this.activePurchases[transactionId] && !this.notifiedPurchases[transactionId]) {
+                                    this.notifiedPurchases[transactionId] = true;
+                                    this.controller.onVerifiedPurchaseExpired(purchase, receipt);
+                                }
+                            }
+                        }
+                    }
+                    // Check for local purchases expiry
+                    // for (const receipt of this.controller.localReceipts) {
+                    //   for (const transaction of receipt.transactions) {
+                    //     if (transaction.expirationDate) {
+                    //       const expirationDate = +transaction.expirationDate + ExpiryMonitor.GRACE_PERIOD_MS;
+                    //       const transactionId = transaction.transactionId ?? `${expirationDate}`;
+                    //       if (expirationDate > now) {
+                    //         this.activeTransactions[transactionId] = true;
+                    //       }
+                    //       if (expirationDate < now && this.activeTransactions[transactionId] && !this.notifiedTransactions[transactionId]) {
+                    //         this.notifiedTransactions[transactionId] = true;
+                    //         this.controller.onTransactionExpired(transaction);
+                    //       }
+                    //     }
+                    //   }
+                    // }
+                }, ExpiryMonitor.INTERVAL_MS);
+            }
+        }
+        /** Time between checks for newly expired subscriptions */
+        ExpiryMonitor.INTERVAL_MS = 10000;
+        /**
+         * Extra time until re-validating an expired subscription.
+         *
+         * The platform will take unspecified amount of time to report the renewal via their APIs.
+         * Values below have been selected via trial-and-error, might require tweaking.
+         */
+        ExpiryMonitor.GRACE_PERIOD_MS = {
+            DEFAULT: 60000,
+            "ios-appstore": 60000,
+            "android-playstore": 30000,
+        };
+        Internal.ExpiryMonitor = ExpiryMonitor;
+    })(Internal = CdvPurchase.Internal || (CdvPurchase.Internal = {}));
+})(CdvPurchase || (CdvPurchase = {}));
 /// <reference path="types.ts" />
 /// <reference path="utils/compatibility.ts" />
+/// <reference path="utils/platform-name.ts" />
 /// <reference path="validator/validator.ts" />
 /// <reference path="log.ts" />
 /// <reference path="internal/adapters.ts" />
@@ -1172,6 +1289,7 @@ var CdvPurchase;
 /// <reference path="internal/register.ts" />
 /// <reference path="internal/transaction-monitor.ts" />
 /// <reference path="internal/receipts-monitor.ts" />
+/// <reference path="internal/expiry-monitor.ts" />
 /**
  * Namespace for the cordova-plugin-purchase plugin.
  *
@@ -1192,7 +1310,7 @@ var CdvPurchase;
     /**
      * Current release number of the plugin.
      */
-    CdvPurchase.PLUGIN_VERSION = '13.8.3';
+    CdvPurchase.PLUGIN_VERSION = '13.8.6';
     /**
      * Entry class of the plugin.
      */
@@ -1289,6 +1407,17 @@ var CdvPurchase;
                 receiptsVerified: () => { store.receiptsVerifiedCallbacks.trigger(); },
                 log: this.log,
             }).launch();
+            this.expiryMonitor = new CdvPurchase.Internal.ExpiryMonitor({
+                // get localReceipts() { return store.localReceipts; },
+                get verifiedReceipts() { return store.verifiedReceipts; },
+                // onTransactionExpired(transaction) {
+                // store.approvedCallbacks.trigger(transaction);
+                // },
+                onVerifiedPurchaseExpired(verifiedPurchase, receipt) {
+                    store.verify(receipt.sourceReceipt);
+                },
+            });
+            this.expiryMonitor.launch();
         }
         /**
          * Retrieve a platform adapter.
@@ -2488,6 +2617,7 @@ var CdvPurchase;
                 this._products = [];
                 this.validProducts = {};
                 this._paymentMonitor = () => { };
+                this.supportsParallelLoading = true;
                 /** True iff the appStoreReceipt is already being initialized */
                 this._appStoreReceiptLoading = false;
                 /** List of functions waiting for the appStoreReceipt to be initialized */
@@ -2583,10 +2713,12 @@ var CdvPurchase;
             /** Notify the store that the receipts have been updated */
             _receiptsUpdated() {
                 if (this._receipt) {
+                    this.log.debug("receipt updated and ready.");
                     this.context.listener.receiptsUpdated(CdvPurchase.Platform.APPLE_APPSTORE, [this._receipt, this.pseudoReceipt]);
                     this.context.listener.receiptsReady(CdvPurchase.Platform.APPLE_APPSTORE);
                 }
                 else {
+                    this.log.debug("receipt updated.");
                     this.context.listener.receiptsUpdated(CdvPurchase.Platform.APPLE_APPSTORE, [this.pseudoReceipt]);
                 }
             }
@@ -2808,7 +2940,7 @@ var CdvPurchase;
                     }
                     const eligibilityRequests = [];
                     validProducts.forEach(valid => {
-                        var _a;
+                        var _a, _b, _c;
                         (_a = valid.discounts) === null || _a === void 0 ? void 0 : _a.forEach(discount => {
                             eligibilityRequests.push({
                                 productId: valid.id,
@@ -2816,7 +2948,7 @@ var CdvPurchase;
                                 discountType: discount.type,
                             });
                         });
-                        if (!valid.discounts && valid.introPrice) {
+                        if (((_c = (_b = valid.discounts) === null || _b === void 0 ? void 0 : _b.length) !== null && _c !== void 0 ? _c : 0) === 0 && valid.introPrice) {
                             // sometime apple returns the discounts in the deprecated "introductory" info
                             // we create a special "discount" with the id "intro" to check for eligibility.
                             eligibilityRequests.push({
@@ -2876,7 +3008,7 @@ var CdvPurchase;
                                     product === null || product === void 0 ? void 0 : product.refresh(valid, this.context.apiDecorators, eligibilities);
                                 }
                                 else {
-                                    this.log.debug('registering existing product');
+                                    this.log.debug('registering new product');
                                     product = new AppleAppStore.SKProduct(valid, p, this.context.apiDecorators, eligibilities);
                                     this._products.push(product);
                                 }
@@ -3501,7 +3633,8 @@ var CdvPurchase;
                             return (_a = this.response[i]) !== null && _a !== void 0 ? _a : false;
                         }
                     }
-                    return false;
+                    // No request for this product, let's say it's eligible.
+                    return true;
                 }
             }
             Internal.DiscountEligibilities = DiscountEligibilities;
@@ -3746,6 +3879,7 @@ var CdvPurchase;
                 this.ready = false;
                 this.products = [];
                 this._receipts = [];
+                this.supportsParallelLoading = false;
                 this.context = context;
                 this.log = context.log.child("Braintree");
                 this.options = options;
@@ -4598,6 +4732,7 @@ var CdvPurchase;
                 this.name = 'GooglePlay';
                 /** Has the adapter been successfully initialized */
                 this.ready = false;
+                this.supportsParallelLoading = false;
                 this._receipts = [];
                 /** The GooglePlay bridge */
                 this.bridge = new GooglePlay.Bridge.Bridge();
@@ -5574,6 +5709,7 @@ var CdvPurchase;
                 this.ready = false;
                 this.products = [];
                 this.receipts = [];
+                this.supportsParallelLoading = true;
                 this.context = context;
                 this.log = context.log.child("Test");
             }
@@ -6007,6 +6143,7 @@ var CdvPurchase;
                 this.id = CdvPurchase.Platform.WINDOWS_STORE;
                 this.name = 'WindowsStore';
                 this.ready = false;
+                this.supportsParallelLoading = false;
                 this.products = [];
                 this.receipts = [];
             }
